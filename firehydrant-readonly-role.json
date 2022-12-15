@@ -1,0 +1,92 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "Creates IAM role and associated policies to allow FireHydrant to read CloudTrail events.",
+    "Parameters": {
+        "ExternalId": {
+            "Type": "String",
+            "Description": "External ID provided by FireHydrant to guard against \"confused deputy\" attack."
+        },
+        "FireHydrantReadOnlyRoleARN": {
+            "Type": "String",
+            "Description": "Cross-account ARN of the FireHydrant-managed role",
+            "Default": "arn:aws:iam::815053439447:role/services/firehydrant-cloudtrail-readonly"
+        },
+        "RolePath": {
+            "Type": "String",
+            "Description": "The path in which to place the FireHydrant role",
+            "Default": "/services/"
+        }
+    },
+    "Outputs": {
+        "FireHydrantRoleArn": {
+            "Description": "ARN of the newly created role for FireHydrant to assume",
+            "Value": {
+                "Fn::GetAtt": [
+                    "FireHydrantCloudTrailReadOnlyRole",
+                    "Arn"
+                ]
+            }
+        }
+    },
+    "Resources": {
+        "FireHydrantCloudTrailReadOnlyRole": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+                "Path": {
+                    "Fn::Sub": "${RolePath}"
+                },
+                "AssumeRolePolicyDocument": {
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Principal": {
+                                "AWS": {
+                                    "Fn::Sub": "${FireHydrantReadOnlyRoleARN}"
+                                }
+                            },
+                            "Condition": {
+                                "StringEquals": {
+                                    "sts:ExternalId": {
+                                        "Fn::Sub": "${ExternalId}"
+                                    }
+                                }
+                            },
+                            "Action": [
+                                "sts:AssumeRole"
+                            ]
+                        }
+                    ]
+                }
+            }
+        },
+        "FireHydrantCloudTrailReadOnlyPolicy": {
+            "Type": "AWS::IAM::Policy",
+            "Properties": {
+                "PolicyName": "FireHydrantCloudTrailReadOnlyPolicy",
+                "PolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Action": [
+                                "cloudtrail:GetTrailStatus",
+                                "cloudtrail:DescribeTrails",
+                                "cloudtrail:LookupEvents",
+                                "cloudtrail:ListTags",
+                                "cloudtrail:ListPublicKeys",
+                                "cloudtrail:GetEventSelectors",
+                                "sts:GetCallerIdentity"
+                            ],
+                            "Effect": "Allow",
+                            "Resource": "*"
+                        }
+                    ]
+                },
+                "Roles": [
+                    {
+                        "Ref": "FireHydrantCloudTrailReadOnlyRole"
+                    }
+                ]
+            }
+        }
+    }
+}
